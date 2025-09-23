@@ -1,125 +1,84 @@
 import {
-	IExecuteFunctions,
-	IDataObject,
-	INodeExecutionData,
-	INodeType,
-	INodeTypeDescription,
-	NodeOperationError,
+    IExecuteFunctions,
+    INodeExecutionData,
+    INodeType,
+    INodeTypeDescription,
+    NodeOperationError,
+    IHttpRequestOptions, // Importação adicionada
 } from 'n8n-workflow';
 
 export class Random implements INodeType {
-	description: INodeTypeDescription = {
-		displayName: 'True Random Number Generator',
-		name: 'random',
-		group: ['transform'],
-		version: 1,
-		description: 'Gera números ou itens aleatórios',
-		defaults: {
-			name: 'Random',
-		},
-		inputs: ['main'],
-		outputs: ['main'],
-		properties: [
-			{
-				displayName: 'Operação',
-				name: 'operation',
-				type: 'options',
-				options: [
-					{
-						name: 'Número',
-						value: 'number',
-						description: 'Gerar número aleatório',
-					},
-					{
-						name: 'Item',
-						value: 'item',
-						description: 'Escolher item aleatório',
-					},
-				],
-				default: 'number',
-			},
-			{
-				displayName: 'Mínimo',
-				name: 'min',
-				type: 'number',
-				default: 0,
-				description: 'Valor mínimo (inclusive)',
-				displayOptions: {
-					show: {
-						operation: ['number'],
-					},
-				},
-			},
-			{
-				displayName: 'Máximo',
-				name: 'max',
-				type: 'number',
-				default: 100,
-				description: 'Valor máximo (inclusive)',
-				displayOptions: {
-					show: {
-						operation: ['number'],
-					},
-				},
-			},
-			{
-				displayName: 'Itens',
-				name: 'items',
-				type: 'string',
-				typeOptions: {
-					multipleValues: true,
-					multipleValueButtonText: 'Adicionar item',
-				},
-				default: [],
-				placeholder: 'item1,item2,item3',
-				description: 'Lista de itens para escolher aleatoriamente',
-				displayOptions: {
-					show: {
-						operation: ['item'],
-					},
-				},
-			},
-		],
-	};
+    description: INodeTypeDescription = {
+        displayName: 'True Random Number Generator',
+        name: 'random',
+        icon: 'fa:random',
+        group: ['transform'],
+        version: 1,
+        description: 'Usa a API da random.org para gerar um número verdadeiramente aleatório.',
+        defaults: {
+            name: 'Random Number',
+        },
+        inputs: ['main'],
+        outputs: ['main'],
+        properties: [
+            {
+                displayName: 'Mínimo',
+                name: 'min',
+                type: 'number',
+                default: 1,
+                required: true,
+                description: 'O menor valor a ser retornado (inclusivo).',
+            },
+            {
+                displayName: 'Máximo',
+                name: 'max',
+                type: 'number',
+                default: 100,
+                required: true,
+                description: 'O maior valor a ser retornado (inclusivo).',
+            },
+        ],
+    };
 
-	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-		const items = this.getInputData();
-		const returnData: INodeExecutionData[] = [];
+    async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+        const items = this.getInputData();
+        const returnData: INodeExecutionData[] = [];
 
-		for (let i = 0; i < items.length; i++) {
-			const operation = this.getNodeParameter('operation', i) as string;
+        for (let i = 0; i < items.length; i++) {
+            const min = this.getNodeParameter('min', i) as number;
+            const max = this.getNodeParameter('max', i) as number;
 
-			if (operation === 'number') {
-				const min = this.getNodeParameter('min', i) as number;
-				const max = this.getNodeParameter('max', i) as number;
+            if (min > max) {
+                throw new NodeOperationError(this.getNode(), 'O valor mínimo não pode ser maior que o máximo.');
+            }
 
-				if (min > max) {
-					throw new NodeOperationError(this.getNode(), 'O valor mínimo não pode ser maior que o máximo.');
-				}
+            // Objeto de opções com a tipagem correta e URL dinâmica
+            const options: IHttpRequestOptions = {
+                method: 'GET',
+                url: `https://www.random.org/integers/?num=1&min=${min}&max=${max}&col=1&base=10&format=plain&rnd=new`,
+                json: false,
+            };
 
-				const randomNumber = Math.floor(Math.random() * (max - min + 1)) + min;
+            try {
+                const response = await this.helpers.httpRequest(options);
+                const randomNumber = parseInt(response as string, 10);
 
-				returnData.push({
-					json: { randomNumber },
-				});
-			}
+                if (isNaN(randomNumber)) {
+                    throw new Error('A resposta da API não foi um número válido.');
+                }
 
-			if (operation === 'item') {
-				const itemsList = this.getNodeParameter('items', i) as string[];
+                returnData.push({
+                    json: { randomNumber },
+                    pairedItem: { item: i }
+                });
 
-				if (!itemsList.length) {
-					throw new NodeOperationError(this.getNode(), 'Nenhum item fornecido.');
-				}
+            } catch (error) {
+                throw new NodeOperationError(this.getNode(), new Error(String(error)), {
+                    description: 'Não foi possível buscar o número aleatório na API random.org.',
+                });
+            }
+        }
 
-				const randomIndex = Math.floor(Math.random() * itemsList.length);
-				const randomItem = itemsList[randomIndex];
-
-				returnData.push({
-					json: { randomItem },
-				});
-			}
-		}
-
-		return [returnData];
-	}
+        return [returnData];
+    }
 }

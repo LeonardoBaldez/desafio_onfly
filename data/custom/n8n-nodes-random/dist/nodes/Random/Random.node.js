@@ -6,73 +6,31 @@ class Random {
     description = {
         displayName: 'True Random Number Generator',
         name: 'random',
+        icon: 'fa:random',
         group: ['transform'],
         version: 1,
-        description: 'Gera números ou itens aleatórios',
+        description: 'Usa a API da random.org para gerar um número verdadeiramente aleatório.',
         defaults: {
-            name: 'Random',
+            name: 'Random Number',
         },
         inputs: ['main'],
         outputs: ['main'],
         properties: [
             {
-                displayName: 'Operação',
-                name: 'operation',
-                type: 'options',
-                options: [
-                    {
-                        name: 'Número',
-                        value: 'number',
-                        description: 'Gerar número aleatório',
-                    },
-                    {
-                        name: 'Item',
-                        value: 'item',
-                        description: 'Escolher item aleatório',
-                    },
-                ],
-                default: 'number',
-            },
-            {
                 displayName: 'Mínimo',
                 name: 'min',
                 type: 'number',
-                default: 0,
-                description: 'Valor mínimo (inclusive)',
-                displayOptions: {
-                    show: {
-                        operation: ['number'],
-                    },
-                },
+                default: 1,
+                required: true,
+                description: 'O menor valor a ser retornado (inclusivo).',
             },
             {
                 displayName: 'Máximo',
                 name: 'max',
                 type: 'number',
                 default: 100,
-                description: 'Valor máximo (inclusive)',
-                displayOptions: {
-                    show: {
-                        operation: ['number'],
-                    },
-                },
-            },
-            {
-                displayName: 'Itens',
-                name: 'items',
-                type: 'string',
-                typeOptions: {
-                    multipleValues: true,
-                    multipleValueButtonText: 'Adicionar item',
-                },
-                default: [],
-                placeholder: 'item1,item2,item3',
-                description: 'Lista de itens para escolher aleatoriamente',
-                displayOptions: {
-                    show: {
-                        operation: ['item'],
-                    },
-                },
+                required: true,
+                description: 'O maior valor a ser retornado (inclusivo).',
             },
         ],
     };
@@ -80,27 +38,31 @@ class Random {
         const items = this.getInputData();
         const returnData = [];
         for (let i = 0; i < items.length; i++) {
-            const operation = this.getNodeParameter('operation', i);
-            if (operation === 'number') {
-                const min = this.getNodeParameter('min', i);
-                const max = this.getNodeParameter('max', i);
-                if (min > max) {
-                    throw new n8n_workflow_1.NodeOperationError(this.getNode(), 'O valor mínimo não pode ser maior que o máximo.');
+            const min = this.getNodeParameter('min', i);
+            const max = this.getNodeParameter('max', i);
+            if (min > max) {
+                throw new n8n_workflow_1.NodeOperationError(this.getNode(), 'O valor mínimo não pode ser maior que o máximo.');
+            }
+            // Objeto de opções com a tipagem correta e URL dinâmica
+            const options = {
+                method: 'GET',
+                url: `https://www.random.org/integers/?num=1&min=${min}&max=${max}&col=1&base=10&format=plain&rnd=new`,
+                json: false,
+            };
+            try {
+                const response = await this.helpers.httpRequest(options);
+                const randomNumber = parseInt(response, 10);
+                if (isNaN(randomNumber)) {
+                    throw new Error('A resposta da API não foi um número válido.');
                 }
-                const randomNumber = Math.floor(Math.random() * (max - min + 1)) + min;
                 returnData.push({
                     json: { randomNumber },
+                    pairedItem: { item: i }
                 });
             }
-            if (operation === 'item') {
-                const itemsList = this.getNodeParameter('items', i);
-                if (!itemsList.length) {
-                    throw new n8n_workflow_1.NodeOperationError(this.getNode(), 'Nenhum item fornecido.');
-                }
-                const randomIndex = Math.floor(Math.random() * itemsList.length);
-                const randomItem = itemsList[randomIndex];
-                returnData.push({
-                    json: { randomItem },
+            catch (error) {
+                throw new n8n_workflow_1.NodeOperationError(this.getNode(), new Error(String(error)), {
+                    description: 'Não foi possível buscar o número aleatório na API random.org.',
                 });
             }
         }
