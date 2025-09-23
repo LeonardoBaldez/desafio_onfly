@@ -1,0 +1,32 @@
+{
+  "name": "n8n-nodes-random",
+  "version": "0.1.0",
+  "description": "n8n custom node - Random (True Random Number Generator)",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "n8n-community-node-package"
+  ],
+  "license": "MIT",
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "nodes": [
+      "dist/nodes/Random/Random.node.js"
+    ]
+  },
+  "dependencies": {
+    "request": "^2.88.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/request": "^2.48.5",
+    "n8n-core": "^1.112.1",
+    "n8n-workflow": "^1.110.0",
+    "typescript": "^5.2.2"
+  }
+}
