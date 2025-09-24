@@ -1,22 +1,25 @@
 version: '3.8'
 
 services:
+#Definição dos serviços postgres e n8n
   postgres:
+  #Especifica a imagem Docker que será usada
     image: postgres:15-alpine
     environment:
-      POSTGRES_DB: n8n
-      POSTGRES_USER: n8n
+    #Define as variáveis de ambiente dentro do contêiner
+      POSTGRES_DB: n8n #Cria um banco de dados inicial chamado n8n
+      POSTGRES_USER: n8n #Cria um usuário chamado n8n
       POSTGRES_PASSWORD: n8n_password
-    volumes:
+    volumes: #Mapeia um diretório do computador para um diretório dentro do contêiner
       - ./postgres-data:/var/lib/postgresql/data
-    restart: unless-stopped
+    restart: unless-stopped #O contêiner do postgres será automaticamente reiniciado caso ele pare por algum erro
 
-  n8n:
-    image: n8nio/n8n:1.85.4
-    ports:
+  n8n: #Este bloco define o contêiner principal, que rodará a aplicação n8n
+    image: n8nio/n8n:1.85.4 #Utiliza a imagem oficial do n8n da n8nio, na versão 1.85.4
+    ports: #Define a porta para acessa pelo localhost
       - "5678:5678"
     environment:
-      # Banco Postgres (use DB_TYPE=postgresdb e variáveis DB_POSTGRESDB_*)
+      # Banco Postgres
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres
       - DB_POSTGRESDB_PORT=5432
@@ -29,14 +32,13 @@ services:
       - N8N_BASIC_AUTH_USER=admin
       - N8N_BASIC_AUTH_PASSWORD=admin_password
 
-      # timezone (opcional)
+      # timezone
       - GENERIC_TIMEZONE=America/Sao_Paulo
 
-      # Opcional: aponta para a pasta de custom nodes (padrão já é ~/.n8n/custom)
       - N8N_CUSTOM_EXTENSIONS=/home/node/.n8n/custom
 
-    volumes:
+    volumes: #Garante a persistência dos dados do n8n
       - ./data:/home/node/.n8n
-    depends_on:
+    depends_on: #Garante que o contêiner do postgres seja iniciado antes do contêiner do n8n
       - postgres
-    restart: unless-stopped
+    restart: unless-stopped #Garante que o n8n volte a funcionar automaticamente em caso de falha
